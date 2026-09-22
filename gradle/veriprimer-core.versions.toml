@@ -1,0 +1,11 @@
+# Version catalog for consuming VeriPrimer (VASP) artifacts from GitHub Packages.
+# Required by the se.vermiculus.veriprimer.tooling.vaspgenerator Gradle plugin, which
+# resolves these aliases via its DependencyApplier against a catalog named "veriprimerCore".
+[versions]
+veriprimer = "12.1.0-708a322"
+
+[libraries]
+platform-protocol-common = { module = "se.vermiculus.veriprimer.core.platform.protocol:core-platform-protocol-common", version.ref = "veriprimer" }
+platform-protocol-format-vasp-encoding = { module = "se.vermiculus.veriprimer.core.platform.protocol.format.vasp:core-platform-protocol-format-vasp-encoding", version.ref = "veriprimer" }
+platform-protocol-format-vasp-api = { module = "se.vermiculus.veriprimer.core.platform.protocol.format.vasp:core-platform-protocol-format-vasp-api", version.ref = "veriprimer" }
+tooling-development-protocol-vaspgenerator-logic = { module = "se.vermiculus.veriprimer.core.tooling.development.protocol:core-tooling-development-protocol-vasp-generator", version.ref = "veriprimer" }

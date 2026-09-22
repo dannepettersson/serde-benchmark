@@ -1,0 +1,30 @@
+pluginManagement {
+    repositories {
+        gradlePluginPortal()
+        mavenCentral()
+        maven {
+            name = 'VeriPrimerGitHubPackages'
+            url = uri('https://maven.pkg.github.com/VermicFinTech/veriprimer')
+            credentials {
+                username = providers.gradleProperty('gpr.user')
+                    .orElse(providers.environmentVariable('VERIPRIMER_PACKAGES_USER'))
+                    .orElse(providers.environmentVariable('GITHUB_ACTOR'))
+                    .getOrNull()
+                password = providers.gradleProperty('gpr.key')
+                    .orElse(providers.environmentVariable('VERIPRIMER_PACKAGES_TOKEN'))
+                    .orElse(providers.environmentVariable('GITHUB_TOKEN'))
+                    .getOrNull()
+            }
+        }
+    }
+}
+
+dependencyResolutionManagement {
+    versionCatalogs {
+        create('veriprimerCore') {
+            from(files('gradle/veriprimer-core.versions.toml'))
+        }
+    }
+}
+
+rootProject.name = 'serde-benchmark'

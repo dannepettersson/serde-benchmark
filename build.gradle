@@ -1,0 +1,126 @@
+plugins {
+    id 'java'
+    id 'application'
+    id 'jacoco'
+    id 'com.github.davidmc24.gradle.plugin.avro' version '1.9.1'
+    id 'com.google.protobuf' version '0.9.6'
+    id 'me.champeau.jmh' version '0.7.3'
+    id 'io.morethan.jmhreport' version '0.9.6'
+    id 'se.vermiculus.veriprimer.tooling.vaspgenerator' version '12.0.6'
+}
+
+def ghUser = providers.gradleProperty('gpr.user')
+    .orElse(providers.environmentVariable('VERIPRIMER_PACKAGES_USER'))
+    .orElse(providers.environmentVariable('GITHUB_ACTOR')).getOrNull()
+def ghKey = providers.gradleProperty('gpr.key')
+    .orElse(providers.environmentVariable('VERIPRIMER_PACKAGES_TOKEN'))
+    .orElse(providers.environmentVariable('GITHUB_TOKEN')).getOrNull()
+
+repositories {
+    mavenCentral()
+    maven { url = uri('https://plugins.gradle.org/m2/') }
+    maven {
+        name = 'VeriPrimerGitHubPackages'
+        url = uri('https://maven.pkg.github.com/VermicFinTech/veriprimer')
+        credentials {
+            username = ghUser
+            password = ghKey
+        }
+    }
+}
+
+vaspProtocolGeneration {
+    serdesDictionaryName = 'VaspBenchmark'
+    serdesDictionaryPackage = 'se.vermiculus.benchmark.messages'
+}
+
+java {
+    toolchain {
+        def javaVersion = project.hasProperty('javaVersion') ? project.property('javaVersion').toInteger() : 17
+        languageVersion = JavaLanguageVersion.of(javaVersion)
+    }
+}
+
+dependencies {
+    implementation 'org.apache.avro:avro:1.11.5'
+    implementation 'com.google.protobuf:protobuf-java:4.36.0'
+
+    implementation veriprimerCore.platform.protocol.common
+    implementation veriprimerCore.platform.protocol.format.vasp.encoding
+    implementation veriprimerCore.platform.protocol.format.vasp.api
+    implementation 'org.apache.mina:mina-core:2.2.7'
+
+    implementation 'org.openjdk.jmh:jmh-core:1.37'
+    annotationProcessor 'org.openjdk.jmh:jmh-generator-annprocess:1.37'
+    testImplementation 'org.junit.jupiter:junit-jupiter-api:5.10.0'
+    testRuntimeOnly 'org.junit.jupiter:junit-jupiter-engine:5.10.0'
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+}
+
+test {
+    useJUnitPlatform()
+}
+
+build.dependsOn test
+
+sourceSets {
+    main {
+        java {
+            srcDirs 'src/main/java', 'build/generated/source/proto/main/java', 'build/generated/sources/avro/java/main', 'build/generated/serdes'
+        }
+    }
+}
+
+sourceSets.jmh {
+    compileClasspath += sourceSets.messages.output
+    runtimeClasspath += sourceSets.messages.output
+}
+tasks.named('compileJmhJava') {
+    dependsOn 'generateVaspProtocol', 'messagesClasses'
+}
+
+protobuf {
+    protoc {
+        artifact = 'com.google.protobuf:protoc:4.36.0'
+    }
+    generateProtoTasks {
+        all().each { task ->
+            task.builtins {
+                java {}
+            }
+        }
+    }
+}
+jmh {
+    def jmhThreads = project.hasProperty('jmh.threads') ? project.property('jmh.threads').toInteger() : 1
+    def toolchainLauncher = project.extensions.getByType(JavaToolchainService).launcherFor(java.toolchain)
+    def jmhMaxMemory = '2g'
+
+    resultFormat = 'JSON'
+    resultsFile = layout.buildDirectory.file('reports/jmh/results.json').get().asFile
+    jmhVersion = '1.37'
+    timeUnit = 'ns'
+    threads = jmhThreads
+    jvmArgs = ["-Xmx${jmhMaxMemory}", "-Xms${jmhMaxMemory}"]
+
+    benchmarkParameters = [
+        javaRuntime: objects.listProperty(String).value([toolchainLauncher.map { l -> l.metadata.javaRuntimeVersion }.get().replaceAll(" ", "_")]),
+        javaVendor: objects.listProperty(String).value([toolchainLauncher.map { l ->  l.metadata.vendor }.get().replaceAll(" ", "_")]),
+        osName: objects.listProperty(String).value([System.getProperty("os.name").replaceAll(" ", "_")]),
+        osVersion: objects.listProperty(String).value([System.getProperty("os.version").replaceAll(" ", "_")]),
+        osArchitecture: objects.listProperty(String).value([System.getProperty("os.arch").replaceAll(" ", "_")]),
+        processors: objects.listProperty(String).value([Runtime.getRuntime().availableProcessors().toString()]),
+        jvmMemory: objects.listProperty(String).value([jmhMaxMemory]),
+        jmhThreads: objects.listProperty(String).value([jmhThreads.toString()])
+    ]
+}
+
+tasks.named('jmhJar') {
+    zip64 = true
+    from(sourceSets.messages.output)
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+}
+
+tasks.named('jmhReport') {
+    dependsOn('jmh')
+}

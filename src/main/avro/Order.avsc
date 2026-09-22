@@ -1,0 +1,92 @@
+{
+  "namespace": "se.vermiculus.benchmark.serialization.model.avro",
+  "type": "record",
+  "name": "Order",
+  "fields": [
+    {"name": "id", "type": "string"},
+    {
+      "name": "customer",
+      "type": {
+        "type": "record",
+        "name": "Customer",
+        "fields": [
+          {"name": "id", "type": "long"},
+          {"name": "firstName", "type": "string"},
+          {"name": "lastName", "type": "string"},
+          {"name": "email", "type": "string"},
+          {"name": "dateOfBirth", "type": {"type": "int", "logicalType": "date"}},
+          {"name": "vip", "type": "boolean"},
+          {
+            "name": "addresses",
+            "type": {
+              "type": "array",
+              "items": {
+                "type": "record",
+                "name": "Address",
+                "fields": [
+                  {"name": "street", "type": "string"},
+                  {"name": "city", "type": "string"},
+                  {"name": "zip", "type": "string"},
+                  {"name": "country", "type": "string"}
+                ]
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "lines",
+      "type": {
+        "type": "array",
+        "items": {
+          "type": "record",
+          "name": "OrderLine",
+          "fields": [
+            {
+              "name": "product",
+              "type": {
+                "type": "record",
+                "name": "Product",
+                "fields": [
+                  {"name": "sku", "type": "string"},
+                  {"name": "name", "type": "string"},
+                  {"name": "description", "type": "string"},
+                  {
+                    "name": "category",
+                    "type": {
+                      "type": "record",
+                      "name": "Category",
+                      "fields": [
+                        {"name": "id", "type": "long"},
+                        {"name": "name", "type": "string"},
+                        {"name": "parent", "type": ["null", "Category"], "default": null}
+                      ]
+                    }
+                  },
+                  {"name": "price", "type": {"type": "bytes", "logicalType": "decimal", "precision": 38, "scale": 10}},
+                  {"name": "weightGrams", "type": "int"},
+                  {"name": "tags", "type": {"type": "array", "items": "string"}}
+                ]
+              }
+            },
+            {"name": "quantity", "type": "int"},
+            {"name": "unitPrice", "type": {"type": "bytes", "logicalType": "decimal", "precision": 38, "scale": 10}},
+            {"name": "discount", "type": "double"}
+          ]
+        }
+      }
+    },
+    {
+      "name": "status",
+      "type": {
+        "type": "enum",
+        "name": "OrderStatus",
+        "symbols": ["NEW", "PAID", "PICKING", "SHIPPED", "DELIVERED", "CANCELLED"]
+      }
+    },
+    {"name": "created", "type": {"type": "int", "logicalType": "date"}},
+    {"name": "shippingAddress", "type": "Address"},
+    {"name": "notes", "type": "string"}
+  ]
+}
