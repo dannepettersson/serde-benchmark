@@ -1,0 +1,39 @@
+name: JMH Benchmark (local)
+
+# Intended for local execution with `act`. Uses workflow_dispatch so it does
+# not run automatically on GitHub (the benchmark.yml workflow covers CI).
+# Run locally with:
+#   act workflow_dispatch -W .github/workflows/benchmark-local.yaml \
+#     --secret-file <secrets> \
+#     -P ubuntu-latest=catthehacker/ubuntu:act-latest
+on:
+  workflow_dispatch:
+
+jobs:
+  benchmark:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        java: [ '17', '21', '25' ]
+        threads: [ '1', '10' ]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK ${{ matrix.java }}
+        uses: actions/setup-java@v4
+        with:
+          java-version: ${{ matrix.java }}
+          distribution: 'zulu'
+
+      - name: Run JMH benchmarks
+        env:
+          VERIPRIMER_PACKAGES_USER: ${{ secrets.VERIPRIMER_PACKAGES_USER }}
+          VERIPRIMER_PACKAGES_TOKEN: ${{ secrets.VERIPRIMER_PACKAGES_TOKEN }}
+        run: ./gradlew jmh -PjavaVersion=${{ matrix.java }} -Pjmh.threads=${{ matrix.threads }}
+
+      - name: Rename benchmark results
+        run: mv build/reports/jmh/results.json build/reports/jmh/java-${{ matrix.java }}-threads-${{ matrix.threads }}.json
+
+#  act workflow_dispatch -W .github/workflows/benchmark-local.yaml \                                                                                                                                         ┃
+#  --secret-file <secrets> \                                                                                                                                                                               ┃
+#  -P ubuntu-latest=catthehacker/ubuntu:act-latest --bind --matrix java:17 --matrix threads:1
