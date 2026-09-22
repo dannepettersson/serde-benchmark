@@ -1,5 +1,6 @@
 package se.vermiculus.benchmark.jmh.avro;
 
+import se.vermiculus.benchmark.serialization.Serializer;
 import se.vermiculus.benchmark.serialization.avro.AvroMapper;
 import se.vermiculus.benchmark.serialization.model.avro.Order;
 
@@ -16,40 +17,41 @@ import org.apache.avro.specific.SpecificDatumWriter;
 import org.openjdk.jmh.infra.Blackhole;
 import se.vermiculus.benchmark.util.DatasetGenerator;
 
-public class AvroSerDeBenchmark {
+public class AvroSerDeBenchmark implements Serializer {
 
     private static final AvroMapper MAPPER = new AvroMapper();
 
-    public static class BenchmarkState {
-        public Order avroOrder = MAPPER.map(DatasetGenerator.createSingleOrder());
-        public byte[] serializedAvroOrder;
+    private Order avroOrder;
+    private byte[] serializedAvroOrder;
 
-        public BenchmarkState() {
-            try {
-                ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
-                DatumWriter<Order> datumWriter = new SpecificDatumWriter<>(Order.class);
-                Encoder encoder = EncoderFactory.get().binaryEncoder(byteArrayOutputStream, null);
-                datumWriter.write(avroOrder, encoder);
-                encoder.flush();
-                serializedAvroOrder = byteArrayOutputStream.toByteArray();
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
-        }
+    @Override
+    public void init(se.vermiculus.benchmark.messages.Order javaOrder) {
+        this.avroOrder = MAPPER.map(javaOrder);
+        this.serializedAvroOrder = this.serialize();
     }
 
-    public void avroSerialization(BenchmarkState state, Blackhole blackhole) throws IOException {
+    @Override
+    public byte[] serialize() {
+        try {
         ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
         DatumWriter<Order> datumWriter = new SpecificDatumWriter<>(Order.class);
         Encoder encoder = EncoderFactory.get().binaryEncoder(byteArrayOutputStream, null);
-        datumWriter.write(state.avroOrder, encoder);
+        datumWriter.write(avroOrder, encoder);
         encoder.flush();
-        blackhole.consume(byteArrayOutputStream.toByteArray());
+        return byteArrayOutputStream.toByteArray();
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
     }
 
-    public void avroDeserialization(BenchmarkState state, Blackhole blackhole) throws IOException {
+    @Override
+    public Object deserialize() {
+     try  {
         DatumReader<Order> datumReader = new SpecificDatumReader<>(Order.class);
-        Decoder decoder = DecoderFactory.get().binaryDecoder(state.serializedAvroOrder, null);
-        blackhole.consume(datumReader.read(null, decoder));
+        Decoder decoder = DecoderFactory.get().binaryDecoder(this.serializedAvroOrder, null);
+        return datumReader.read(null, decoder);
+    } catch (IOException e) {
+         throw new RuntimeException(e);
+    }
     }
 }

@@ -3,6 +3,9 @@ package se.vermiculus.benchmark.jmh;
 import se.vermiculus.benchmark.jmh.avro.AvroSerDeBenchmark;
 import se.vermiculus.benchmark.jmh.protobuf.ProtobufSerDeBenchmark;
 import se.vermiculus.benchmark.jmh.vasp.VaspSerDeBenchmark;
+import se.vermiculus.benchmark.messages.Order;
+import se.vermiculus.benchmark.serialization.Serializer;
+import se.vermiculus.benchmark.util.DatasetGenerator;
 import se.vermiculus.benchmark.util.EnvironmentUtil;
 import java.io.IOException;
 import org.openjdk.jmh.annotations.Benchmark;
@@ -28,7 +31,7 @@ import org.openjdk.jmh.infra.Blackhole;
 //@Measurement(iterations = 1, time = 1)
 
 @Fork(2)
-public class JavaSerDeBenchmark {
+public class SerDeBenchmark {
 
     @Param({"os-name-placeholder"})
     public String osName;
@@ -55,48 +58,44 @@ public class JavaSerDeBenchmark {
     public Integer jmhThreads;
 
     @Setup(Level.Trial)
-    public void setup() {
+    public void setup()
+    {
         EnvironmentUtil.printEnvironment();
     }
 
     @State(Scope.Benchmark)
     public static class BenchmarkState {
-        final AvroSerDeBenchmark.BenchmarkState avroState = new AvroSerDeBenchmark.BenchmarkState();
-        final ProtobufSerDeBenchmark.BenchmarkState protobufState = new ProtobufSerDeBenchmark.BenchmarkState();
-        final VaspSerDeBenchmark.BenchmarkState vaspState = new VaspSerDeBenchmark.BenchmarkState();
 
-        final AvroSerDeBenchmark avroSerDeBenchmark = new AvroSerDeBenchmark();
-        final ProtobufSerDeBenchmark protobufSerDeBenchmark = new ProtobufSerDeBenchmark();
-        final VaspSerDeBenchmark vaspSerDeBenchmark = new VaspSerDeBenchmark();
+        @Param({"AVRO", "PROTOBUF", "VASP"})
+        public DeserializerType type;
+
+        public Serializer serializer;
+
+        private final Order javaOrder = DatasetGenerator.createSingleOrder();
+
+        public enum DeserializerType {
+            AVRO, PROTOBUF, VASP
+        }
+
+        @Setup(Level.Trial)
+        public void setup() {
+            serializer = switch (type) {
+                case AVRO -> new AvroSerDeBenchmark();
+                case PROTOBUF -> new ProtobufSerDeBenchmark();
+                case VASP -> new VaspSerDeBenchmark();
+            };
+
+            serializer.init(javaOrder);
+        }
     }
 
     @Benchmark
-    public void avroSerialization(BenchmarkState state, Blackhole blackhole) throws IOException {
-        state.avroSerDeBenchmark.avroSerialization(state.avroState, blackhole);
+    public Object testSerialization(BenchmarkState state) {
+        return state.serializer.serialize();
     }
 
     @Benchmark
-    public void avroDeserialization(BenchmarkState state, Blackhole blackhole) throws IOException {
-        state.avroSerDeBenchmark.avroDeserialization(state.avroState, blackhole);
-    }
-
-    @Benchmark
-    public void protobufSerialization(BenchmarkState state, Blackhole blackhole) throws IOException {
-        state.protobufSerDeBenchmark.protobufSerialization(state.protobufState, blackhole);
-    }
-
-    @Benchmark
-    public void protobufDeserialization(BenchmarkState state, Blackhole blackhole) throws IOException {
-        state.protobufSerDeBenchmark.protobufDeserialization(state.protobufState, blackhole);
-    }
-
-    @Benchmark
-    public void vaspSerialization(BenchmarkState state, Blackhole blackhole) throws IOException {
-        state.vaspSerDeBenchmark.vaspSerialization(state.vaspState, blackhole);
-    }
-
-    @Benchmark
-    public void vaspDeserialization(BenchmarkState state, Blackhole blackhole) throws IOException {
-        state.vaspSerDeBenchmark.vaspDeserialization(state.vaspState, blackhole);
+    public Object testDeserialization(BenchmarkState state) {
+        return state.serializer.deserialize();
     }
 }
