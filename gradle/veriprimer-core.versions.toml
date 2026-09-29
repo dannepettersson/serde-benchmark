@@ -2,7 +2,7 @@
 # Required by the se.vermiculus.veriprimer.tooling.vaspgenerator Gradle plugin, which
 # resolves these aliases via its DependencyApplier against a catalog named "veriprimerCore".
 [versions]
-veriprimer = "12.1.0-708a322"
+veriprimer = "13.1.0-60ec2b2"
 
 [libraries]
 platform-protocol-common = { module = "se.vermiculus.veriprimer.core.platform.protocol:core-platform-protocol-common", version.ref = "veriprimer" }
